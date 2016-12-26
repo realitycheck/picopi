@@ -29,7 +29,6 @@
  *   If the language is changed through an SSML tag, there is a latency for the load.
  *
  */
-//#define LOG_NDEBUG 0
 
 #if 0
 #define ALOGE printf
@@ -49,17 +48,10 @@
 
 #define LOG_TAG "SVOX Pico Engine"
 
-//#include <utils/Log.h>
-//#include <utils/String16.h>                     /* for strlen16 */
-//#include <android_runtime/AndroidRuntime.h>
 #include <TtsEngine.h>
 
-//#include <cutils/jstring.h>
-#include "jstring.h"
 #include <picoapi.h>
 #include <picodefs.h>
-
-#include "svox_ssml_parser.h"
 
 using namespace android;
 using namespace std;
@@ -109,7 +101,7 @@ const char * picoSupportedProperties[]      = { "language", "rate", "pitch", "vo
 const int    picoNumSupportedProperties     = 4;
 
 
-/* adapation layer global variables */
+/* adaptation layer global variables */
 synthDoneCB_t * picoSynthDoneCBPtr;
 void *          picoMemArea         = NULL;
 pico_System     picoSystem          = NULL;
@@ -760,293 +752,6 @@ static char * doCamelCase( const char * str )
 }/*doCamelCase*/
 
 
-/** createPhonemeString
- *  Wrap all individual words in <phoneme> tags.
- *  The Pico <phoneme> tag only supports one word in each tag,
- *  therefore they must be individually wrapped!
- *  @xsampa - text to convert to Pico phomene string
- *  @length - length of the input string
- *  return new string with tags applied
-*/
-extern char * createPhonemeString( const char * xsampa, int length )
-{
-    char *  convstring = NULL;
-    int     origStrLen = strlen(xsampa);
-    int     numWords   = 1;
-    int     start, totalLength, i, j;
-
-    for (i = 0; i < origStrLen; i ++) {
-        if ((xsampa[i] == ' ') || (xsampa[i] == '#')) {
-            numWords ++;
-        }
-    }
-
-    if (numWords == 1) {
-        convstring = new char[origStrLen + 17];
-        convstring[0] = '\0';
-        strcat(convstring, PICO_PHONEME_OPEN_TAG);
-        strcat(convstring, xsampa);
-        strcat(convstring, PICO_PHONEME_CLOSE_TAG);
-    } else {
-        char * words[numWords];
-        start = 0; totalLength = 0; i = 0; j = 0;
-        for (i=0, j=0; i < origStrLen; i++) {
-            if ((xsampa[i] == ' ') || (xsampa[i] == '#')) {
-                words[j]    = new char[i+1-start+17];
-                words[j][0] = '\0';
-                strcat( words[j], PICO_PHONEME_OPEN_TAG);
-                strncat(words[j], xsampa+start, i-start);
-                strcat( words[j], PICO_PHONEME_CLOSE_TAG);
-                start = i + 1;
-                j++;
-                totalLength += strlen(words[j-1]);
-            }
-        }
-        words[j]    = new char[i+1-start+17];
-        words[j][0] = '\0';
-        strcat(words[j], PICO_PHONEME_OPEN_TAG);
-        strcat(words[j], xsampa+start);
-        strcat(words[j], PICO_PHONEME_CLOSE_TAG);
-        totalLength += strlen(words[j]);
-        convstring = new char[totalLength + 1];
-        convstring[0] = '\0';
-        for (i=0 ; i < numWords ; i++) {
-            strcat(convstring, words[i]);
-            delete [] words[i];
-        }
-    }
-
-    return convstring;
-}
-
-/* The XSAMPA uses as many as 5 characters to represent a single IPA code.  */
-typedef struct tagPhnArr
-{
-    char16_t    strIPA;             /* IPA Unicode symbol       */
-    char        strXSAMPA[6];       /* SAMPA sequence           */
-} PArr;
-
-#define phn_cnt (134+7)
-
-PArr    PhnAry[phn_cnt] = {
-
-    /* XSAMPA conversion table
-	   This maps a single IPA symbol to a sequence representing XSAMPA.
-       This relies upon a direct one-to-one correspondance
-       including diphthongs and affricates.						      */
-
-    /* Vowels (23) complete     */
-    {0x025B,        "E"},
-    {0x0251,        "A"},
-    {0x0254,        "O"},
-    {0x00F8,        "2"},
-    {0x0153,        "9"},
-    {0x0276,        "&"},
-    {0x0252,        "Q"},
-    {0x028C,        "V"},
-    {0x0264,        "7"},
-    {0x026F,        "M"},
-    {0x0268,        "1"},
-    {0x0289,        "}"},
-    {0x026A,        "I"},
-    {0x028F,        "Y"},
-    {0x028A,        "U"},
-    {0x0259,        "@"},
-    {0x0275,        "8"},
-    {0x0250,        "6"},
-    {0x00E6,        "{"},
-    {0x025C,        "3"},
-    {0x025A,        "@`"},
-    {0x025E,        "3\\\\"},
-    {0x0258,        "@\\\\"},
-
-    /* Consonants (60) complete */
-    {0x0288,        "t`"},
-    {0x0256,        "d`"},
-    {0x025F,        "J\\\\"},
-    {0x0261,        "g"},
-    {0x0262,        "G\\\\"},
-    {0x0294,        "?"},
-    {0x0271,        "F"},
-    {0x0273,        "n`"},
-    {0x0272,        "J"},
-    {0x014B,        "N"},
-    {0x0274,        "N\\\\"},
-    {0x0299,        "B\\\\"},
-    {0x0280,        "R\\\\"},
-    {0x027E,        "4"},
-    {0x027D,        "r`"},
-    {0x0278,        "p\\\\"},
-    {0x03B2,        "B"},
-    {0x03B8,        "T"},
-    {0x00F0,        "D"},
-    {0x0283,        "S"},
-    {0x0292,        "Z"},
-    {0x0282,        "s`"},
-    {0x0290,        "z`"},
-    {0x00E7,        "C"},
-    {0x029D,        "j\\\\"},
-    {0x0263,        "G"},
-    {0x03C7,        "X"},
-    {0x0281,        "R"},
-    {0x0127,        "X\\\\"},
-    {0x0295,        "?\\\\"},
-    {0x0266,        "h\\\\"},
-    {0x026C,        "K"},
-    {0x026E,        "K\\\\"},
-    {0x028B,        "P"},
-    {0x0279,        "r\\\\"},
-    {0x027B,        "r\\\\'"},
-    {0x0270,        "M\\\\"},
-    {0x026D,        "l`"},
-    {0x028E,        "L"},
-    {0x029F,        "L\\\\"},
-    {0x0253,        "b_<"},
-    {0x0257,        "d_<"},
-    {0x0284,        "J\\_<"},
-    {0x0260,        "g_<"},
-    {0x029B,        "G\\_<"},
-    {0x028D,        "W"},
-    {0x0265,        "H"},
-    {0x029C,        "H\\\\"},
-    {0x02A1,        ">\\\\"},
-    {0x02A2,        "<\\\\"},
-    {0x0267,        "x\\\\"},		/* hooktop heng	*/
-    {0x0298,        "O\\\\"},
-    {0x01C0,        "|\\\\"},
-    {0x01C3,        "!\\\\"},
-    {0x01C2,        "=\\"},
-    {0x01C1,        "|\\|\\"},
-    {0x027A,        "l\\\\"},
-    {0x0255,        "s\\\\"},
-    {0x0291,        "z\\\\"},
-    {0x026B,        "l_G"},
-
-
-    /* Diacritics (37) complete */
-    {0x02BC,        "_>"},
-    {0x0325,        "_0"},
-    {0x030A,        "_0"},
-    {0x032C,        "_v"},
-    {0x02B0,        "_h"},
-    {0x0324,        "_t"},
-    {0x0330,        "_k"},
-    {0x033C,        "_N"},
-    {0x032A,        "_d"},
-    {0x033A,        "_a"},
-    {0x033B,        "_m"},
-    {0x0339,        "_O"},
-    {0x031C,        "_c"},
-    {0x031F,        "_+"},
-    {0x0320,        "_-"},
-    {0x0308,        "_\""},     /* centralized		*/
-    {0x033D,        "_x"},
-    {0x0318,        "_A"},
-    {0x0319,        "_q"},
-    {0x02DE,        "`"},
-    {0x02B7,        "_w"},
-    {0x02B2,        "_j"},
-    {0x02E0,        "_G"},
-    {0x02E4,        "_?\\\\"},	/* pharyngealized	*/
-    {0x0303,        "~"},		/* nasalized		*/
-    {0x207F,        "_n"},
-    {0x02E1,        "_l"},
-    {0x031A,        "_}"},
-    {0x0334,        "_e"},
-    {0x031D,        "_r"},		/* raised  equivalent to 02D4 */
-    {0x02D4,        "_r"},		/* raised  equivalent to 031D */
-    {0x031E,        "_o"},		/* lowered equivalent to 02D5 */
-    {0x02D5,        "_o"},		/* lowered equivalent to 031E */
-    {0x0329,        "="},		/* sylabic			*/
-    {0x032F,        "_^"},		/* non-sylabic		*/
-    {0x0361,        "_"},		/* top tie bar		*/
-    {0x035C,        "_"},
-
-    /* Suprasegmental (15) incomplete */
-    {0x02C8,        "\""},		/* primary   stress	*/
-    {0x02CC,        "%"},		/* secondary stress	*/
-    {0x02D0,        ":"},		/* long				*/
-    {0x02D1,        ":\\\\"},	/* half-long		*/
-    {0x0306,        "_X"},		/* extra short		*/
-
-    {0x2016,        "||"},		/* major group		*/
-    {0x203F,        "-\\\\"},	/* bottom tie bar	*/
-    {0x2197,        "<R>"},		/* global rise		*/
-    {0x2198,        "<F>"},		/* global fall		*/
-    {0x2193,        "<D>"},		/* downstep			*/
-    {0x2191,        "<U>"},		/* upstep			*/
-    {0x02E5,        "<T>"},		/* extra high level	*/
-    {0x02E7,        "<M>"},		/* mid level		*/
-    {0x02E9,        "<B>"},		/* extra low level	*/
-
-    {0x025D,        "3`:"},		/* non-IPA	%%		*/
-
-    /* Affricates (6) complete  */
-    {0x02A3,        "d_z"},
-    {0x02A4,        "d_Z"},
-    {0x02A5,        "d_z\\\\"},
-    {0x02A6,        "t_s"},
-    {0x02A7,        "t_S"},
-    {0x02A8,        "t_s\\\\"}
-    };
-
-
-void CnvIPAPnt( const char16_t IPnt, char * XPnt )
-{
-    char16_t        ThisPnt = IPnt;                     /* local copy of single IPA codepoint   */
-    int             idx;                                /* index into table         */
-
-    /* Convert an individual IPA codepoint.
-       A single IPA code could map to a string.
-       Search the table.  If it is not found, use the same character.
-       Since most codepoints can be contained within 16 bits,
-       they are represented as wide chars.              */
-    XPnt[0] = 0;                                        /* clear the result string  */
-
-    /* Search the table for the conversion. */
-    for (idx = 0; idx < phn_cnt; idx ++) {               /* for each item in table   */
-        if (IPnt == PhnAry[idx].strIPA) {                /* matches IPA code         */
-            strcat( XPnt, (const char *)&(PhnAry[idx].strXSAMPA) ); /* copy the XSAMPA string   */
-            return;
-        }
-    }
-    strcat(XPnt, (const char *)&ThisPnt);               /* just copy it             */
-}
-
-
-/** cnvIpaToXsampa
- *  Convert an IPA character string to an XSAMPA character string.
- *  @ipaString - input IPA string to convert
- *  @outXsampaString - converted XSAMPA string is passed back in this parameter
- *  return size of the new string
-*/
-
-int cnvIpaToXsampa( const char16_t * ipaString, size_t ipaStringSize, char ** outXsampaString )
-{
-    size_t xsize;                                  /* size of result               */
-    size_t ipidx;                                  /* index into IPA string        */
-    char * XPnt;                                   /* short XSAMPA char sequence   */
-
-    /* Convert an IPA string to an XSAMPA string and store the xsampa string in *outXsampaString.
-       It is the responsibility of the caller to free the allocated string.
-       Increment through the string.  For each base & combination convert it to the XSAMP equivalent.
-       Because of the XSAMPA limitations, not all IPA characters will be covered.       */
-    XPnt = (char *) malloc(6);
-    xsize   = (4 * ipaStringSize) + 8;          /* assume more than double size */
-    *outXsampaString = (char *) malloc( xsize );/* allocate return string   */
-    *outXsampaString[0] = 0;
-    xsize = 0;                                  /* clear final              */
-
-    for (ipidx = 0; ipidx < ipaStringSize; ipidx ++) { /* for each IPA code        */
-        CnvIPAPnt( ipaString[ipidx], XPnt );           /* get converted character  */
-        strcat((char *)*outXsampaString, XPnt );       /* concatenate XSAMPA       */
-    }
-    free(XPnt);
-    xsize = strlen(*outXsampaString);                  /* get the final length     */
-    return xsize;
-}
-
-
 /* Google Engine API function implementations */
 
 /** init
@@ -1478,7 +1183,6 @@ tts_result TtsEngine::synthesizeText( const char * text, int8_t * buffer, size_t
     short       outbuf[MAX_OUTBUF_SIZE/2];
     pico_Int16  bytes_sent, bytes_recv, text_remaining, out_data_type;
     pico_Status ret;
-    SvoxSsmlParser * parser = NULL;
 
     picoSynthAbort = 0;
     if (text == NULL) {
@@ -1495,70 +1199,18 @@ tts_result TtsEngine::synthesizeText( const char * text, int8_t * buffer, size_t
         return TTS_FAILURE;
     }
 
-    if ( (strncmp(text, "<speak", 6) == 0) || (strncmp(text, "<?xml", 5) == 0) ) {
-        /* SSML input */
-        parser = new SvoxSsmlParser();
-        if (parser && parser->initSuccessful()) {
-            err = parser->parseDocument(text, 1);
-            if (err == XML_STATUS_ERROR) {
-                /* Note: for some reason expat always thinks the input document has an error
-                   at the end, even when the XML document is perfectly formed */
-                ALOGI("Warning: SSML document parsed with errors");
-            }
-            char * parsed_text = parser->getParsedDocument();
-            if (parsed_text) {
-                /* Add property tags to the string - if any.    */
-                local_text = (pico_Char *) doAddProperties( parsed_text );
-                if (!local_text) {
-                    ALOGE("Failed to allocate memory for text string");
-                    delete parser;
-                    return TTS_FAILURE;
-                }
-                char * lang = parser->getParsedDocumentLanguage();
-                if (lang != NULL) {
-                    if (doLanguageSwitch(lang) == TTS_FAILURE) {
-                        ALOGE("Failed to switch to language (%s) specified in SSML document.", lang);
-                        delete parser;
-                        return TTS_FAILURE;
-                    }
-                } else {
-                    // lang is NULL, pick a language so the synthesis can be performed
-                    if (picoCurrentLangIndex == -1) {
-                        // no current language loaded, pick the first one and load it
-                        if (doLanguageSwitchFromLangIndex(0) == TTS_FAILURE) {
-                            ALOGE("Failed to switch to default language.");
-                            delete parser;
-                            return TTS_FAILURE;
-                        }
-                    }
-                    //ALOGI("No language in SSML, using current language (%s).", picoProp_currLang);
-                }
-                delete parser;
-            } else {
-                ALOGE("Failed to parse SSML document");
-                delete parser;
-                return TTS_FAILURE;
-            }
-        } else {
-            ALOGE("Failed to create SSML parser");
-            if (parser) {
-                delete parser;
-            }
-            return TTS_FAILURE;
-        }
-    } else {
-        /* camelCase pre-processing */
-        expanded_text = doCamelCase(text);
-        /* Add property tags to the string - if any.    */
-        local_text = (pico_Char *) doAddProperties( expanded_text );
-        if (expanded_text) {
-            free( expanded_text );
-        }
-        if (!local_text) {
-            ALOGE("Failed to allocate memory for text string");
-            return TTS_FAILURE;
-        }
-    }
+
+	/* camelCase pre-processing */
+	expanded_text = doCamelCase(text);
+	/* Add property tags to the string - if any.    */
+	local_text = (pico_Char *) doAddProperties( expanded_text );
+	if (expanded_text) {
+		free( expanded_text );
+	}
+	if (!local_text) {
+		ALOGE("Failed to allocate memory for text string");
+		return TTS_FAILURE;
+	}
 
     text_remaining = strlen((const char *) local_text) + 1;
 

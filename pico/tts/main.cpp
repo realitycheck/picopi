@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
 {
 	tts_result result;
 	TtsEngine* ttsEngine = getTtsEngine();
-	uint8_t* synthBuffer;
+	int8_t* synthBuffer;
 	char* synthInput = NULL;
 	int currentOption;
     char* outputFilename = NULL;
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])
 
     fprintf(stderr, "Input string: \"%s\"\n", synthInput);
 
-	synthBuffer = new uint8_t[OUTPUT_BUFFER_SIZE];
+	synthBuffer = new int8_t[OUTPUT_BUFFER_SIZE];
 
 	result = ttsEngine->init(synth_done, "../lang/");
 
