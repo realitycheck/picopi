@@ -48,10 +48,10 @@ tts_callback_status synth_done(void *& userdata, uint32_t sample_rate,
 static void usage(void)
 {
 	fprintf(stderr, "\nUsage:\n\n" \
-					"testtts [-o filename] \"Text to speak\"\n\n" \
-		   			"  -o\tFile to write audio to (default stdout)\n");
+					"testtts \"Text to speak\"\n");
 	exit(0);
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -60,7 +60,6 @@ int main(int argc, char *argv[])
 	int8_t* synthBuffer;
 	char* synthInput = NULL;
 	int currentOption;
-    char* outputFilename = NULL;
 
 	fprintf(stderr, "Pico TTS Test App\n");
 
@@ -73,10 +72,6 @@ int main(int argc, char *argv[])
     {
         switch (currentOption)
         {
-        case 'o':
-        	outputFilename = optarg;
-            fprintf(stderr, "Output audio to file '%s'\n", outputFilename);
-            break;
         case 'h':
         	usage();
             break;
@@ -115,11 +110,6 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Failed to load language\n");
 	}
 
-	if (outputFilename)
-	{
-		outfp = fopen(outputFilename, "wb");
-	}
-
 	fprintf(stderr, "Synthesising text...\n");
 
 	result = ttsEngine->synthesizeText(argv[1], synthBuffer, OUTPUT_BUFFER_SIZE, NULL);
@@ -136,10 +126,6 @@ int main(int argc, char *argv[])
 
 	fprintf(stderr, "Completed.\n");
 
-	if (outputFilename)
-	{
-		fclose(outfp);
-	}
 
 	result = ttsEngine->shutdown();
 
