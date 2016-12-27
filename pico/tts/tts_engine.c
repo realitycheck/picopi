@@ -226,7 +226,7 @@ bool TtsEngine_Speak(TTS_Engine *engine, const char *text, void *userdata)
 
 		if (!engine->synthesis_abort_flag) {
 			/* Pass any remaining samples. */
-			engine->synth_callback(userdata, rate, depth, channels, buffer, bufused, true);
+			engine->synth_callback(userdata, rate, depth, channels, buffer, bufused, false);
 			bufused = 0;
 		}
 
