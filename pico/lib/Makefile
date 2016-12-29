@@ -55,4 +55,6 @@ clean:
 
 install:
 	@echo "Copying the library to /usr/lib/"
-	@cp libsvoxpico.so /usr/lib/
+	@install -o root -g root -m644 -D -t /usr/lib libsvoxpico.so
+	@install -o root -g root -m644 -D -t /usr/include pico*.h
+	@install -o root -g root -m644 -D -t /usr/share/pico/lang ../lang/*.bin

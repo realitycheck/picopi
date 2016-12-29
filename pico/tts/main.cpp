@@ -11,7 +11,7 @@ bool synth_callback(void *user, uint32_t rate, uint32_t depth, int channels, uin
 
 int main(int argc, char *argv[])
 {
-	const char *voiceDir = "/home/spirux/Development/tts/picopi/pico/lang";
+	const char *voiceDir = "/usr/share/pico/lang";
 	const char *text = "Hello world.";
 	TTS_Engine *engine = TtsEngine_Create(voiceDir, "en-GB", synth_callback);
 
