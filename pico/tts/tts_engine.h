@@ -7,8 +7,8 @@ extern "C" {
 
 #include <stdint.h>
 #include <stdbool.h>
-struct TTS_Engine_t;
-typedef struct TTS_Engine_t TTS_Engine;
+struct sTTS_Engine;
+typedef struct sTTS_Engine TTS_Engine;
 
 // Callback used to return audio chunks as they are being synthesized.
 // Return false to stop the synthesis or true to continue.

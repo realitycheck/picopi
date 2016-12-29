@@ -35,7 +35,7 @@ static const char * pico_sq_files[]       = { "en-US_lh0_sg.bin", "en-GB_kh0_sg.
 static const char * pico_utpp_files[]     = { "en-US_utpp.bin",   "en-GB_utpp.bin",   "de-DE_utpp.bin",   "es-ES_utpp.bin",   "fr-FR_utpp.bin",   "it-IT_utpp.bin" };
 static const int pico_num_voices          = 6;
 
-struct TTS_Engine_t {
+struct sTTS_Engine {
 	tts_callback_t * synth_callback;
 	void *          pico_mem_pool;
 	pico_System     pico_sys;
