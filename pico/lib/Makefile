@@ -53,7 +53,7 @@ include $(SRCS:.c=.d)
 clean:
 	-${RM} ${TARGET_LIB} ${OBJS} $(SRCS:.c=.d)
 
-install:
+install: all
 	@echo "Copying the library to /usr/lib/"
 	@install -o root -g root -m644 -D -t /usr/lib libsvoxpico.so
 	@install -o root -g root -m644 -D -t /usr/include pico*.h
