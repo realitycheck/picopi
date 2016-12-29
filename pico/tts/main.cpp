@@ -14,9 +14,12 @@ int main(int argc, char *argv[])
 	const char *voiceDir = "/usr/share/pico/lang";
 	const char *text = "Hello world.";
 	TTS_Engine *engine = TtsEngine_Create(voiceDir, "en-GB", synth_callback);
+	if (!engine) {
+		fprintf(stderr, "Engine creation failed");
+		return -1;
+	}
 
-	if (argc > 1)
-	{
+	if (argc > 1) {
 		text = argv[1];
 	}
 
@@ -25,7 +28,11 @@ int main(int argc, char *argv[])
 	TtsEngine_SetPitch(engine, 100);
 	TtsEngine_SetRate(engine, 100);
 
-	TtsEngine_Speak(engine, text, stdout);
+	if (!TtsEngine_Speak(engine, text, stdout)) {
+		fprintf(stderr, "TtsEngine_Speak failed");
+		TtsEngine_Destroy(engine);
+		return -1;
+	}
 
 	TtsEngine_Destroy(engine);
 	return 0;

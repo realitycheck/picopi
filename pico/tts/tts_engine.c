@@ -43,9 +43,6 @@ struct TTS_Engine_t {
 	pico_Resource   pico_sq;
 	pico_Resource   pico_utpp;
 	pico_Engine     pico_engine;
-	pico_Char *     picoTaFileName;
-	pico_Char *     picoSgFileName;
-	pico_Char *     picoUtppFileName;
 	char *  current_language;
 	int     current_rate;
 	int     current_pitch;
@@ -288,9 +285,6 @@ void TtsEngine_Destroy(TTS_Engine *engine)
 
 	free(engine->pico_mem_pool);
 	free(engine->current_language);
-	free(engine->picoTaFileName);
-	free(engine->picoSgFileName);
-	free(engine->picoUtppFileName);
 	free(engine->languages_path);
 	free(engine->synthesis_buffer);
 	free(engine);
@@ -299,114 +293,122 @@ void TtsEngine_Destroy(TTS_Engine *engine)
 static bool load_language(TTS_Engine *engine, const char *lang)
 {
 	pico_Status ret;
-	pico_Char picoTaResourceName[PICO_MAX_RESOURCE_NAME_SIZE];
-	pico_Char picoSgResourceName[PICO_MAX_RESOURCE_NAME_SIZE];
-	pico_Char picoUtppResourceName[PICO_MAX_RESOURCE_NAME_SIZE];
+	bool success = false;
+	pico_Char resource_name_ta[PICO_MAX_RESOURCE_NAME_SIZE];
+	pico_Char resource_name_sq[PICO_MAX_RESOURCE_NAME_SIZE];
+	pico_Char resource_name_utpp[PICO_MAX_RESOURCE_NAME_SIZE];
+	pico_Char *fname_ta = NULL, *fname_sq = NULL, *fname_utpp = NULL;
 
-	int langIndex = find_language_index(lang);
-	if (langIndex < 0) {
+	int lang_index = find_language_index(lang);
+	if (lang_index < 0) {
 		PICO_DBG("Unsupported language: %s\n", lang);
-		return false;
+		goto cleanup;
 	}
 
 	engine->current_language = strdup(lang);
-	engine->picoTaFileName = (pico_Char *) path_join(engine->languages_path, pico_ta_files[langIndex]);
-	engine->picoSgFileName = (pico_Char *) path_join(engine->languages_path, pico_sq_files[langIndex]);
-	engine->picoUtppFileName = (pico_Char *) path_join(engine->languages_path, pico_utpp_files[langIndex]);
+	fname_ta = (pico_Char *) path_join(engine->languages_path, pico_ta_files[lang_index]);
+	fname_sq = (pico_Char *) path_join(engine->languages_path, pico_sq_files[lang_index]);
+	fname_utpp = (pico_Char *) path_join(engine->languages_path, pico_utpp_files[lang_index]);
 
-	if (!is_readable(engine->picoTaFileName)) {
+	if (!is_readable(fname_ta)) {
 		PICO_DBG("%s is not readable.\n", engine->picoTaFileName);
-		return false;
+		goto cleanup;
 	}
 
-	if (!is_readable(engine->picoSgFileName)) {
+	if (!is_readable(fname_sq)) {
 		PICO_DBG("%s is not readable.\n", engine->picoSgFileName);
-		return false;
+		goto cleanup;
 	}
 
 	/* Load the text analysis Lingware resource file.   */
-	ret = pico_loadResource(engine->pico_sys, engine->picoTaFileName, &engine->pico_ta);
+	ret = pico_loadResource(engine->pico_sys, fname_ta, &engine->pico_ta);
 	if (PICO_OK != ret) {
-		PICO_DBG("Failed to load textana resource for %s [%d]\n", pico_languages[langIndex], ret);
-		return false;
+		PICO_DBG("Failed to load textana resource for %s [%d]\n", pico_languages[lang_index], ret);
+		goto cleanup;
 	}
 
 	/* Load the signal generation Lingware resource file.   */
-	ret = pico_loadResource(engine->pico_sys, engine->picoSgFileName, &engine->pico_sq);
+	ret = pico_loadResource(engine->pico_sys, fname_sq, &engine->pico_sq);
 	if (PICO_OK != ret) {
-		PICO_DBG("Failed to load siggen resource for %s [%d]\n", pico_languages[langIndex], ret);
-		return false;
+		PICO_DBG("Failed to load siggen resource for %s [%d]\n", pico_languages[lang_index], ret);
+		goto cleanup;
 	}
 
 	/* Load the utpp Lingware resource file if exists - NOTE: this file is optional
 	   and is currently not used. Loading is only attempted for future compatibility.
 	   If this file is not present the loading will still succeed.                      */
-	ret = pico_loadResource(engine->pico_sys, engine->picoUtppFileName, &engine->pico_utpp);
+	ret = pico_loadResource(engine->pico_sys, fname_utpp, &engine->pico_utpp);
 	if ((PICO_OK != ret) && (ret != PICO_EXC_CANT_OPEN_FILE)) {
-		PICO_DBG("Failed to load utpp resource for %s [%d]\n", pico_languages[langIndex], ret);
-		return false;
+		PICO_DBG("Failed to load utpp resource for %s [%d]\n", pico_languages[lang_index], ret);
+		goto cleanup;
 	}
 
 	/* Get the text analysis resource name.     */
-	ret = pico_getResourceName(engine->pico_sys, engine->pico_ta, (char *) picoTaResourceName);
+	ret = pico_getResourceName(engine->pico_sys, engine->pico_ta, (char *) resource_name_ta);
 	if (PICO_OK != ret) {
-		PICO_DBG("Failed to get textana resource name for %s [%d]\n", pico_languages[langIndex], ret);
-		return false;
+		PICO_DBG("Failed to get textana resource name for %s [%d]\n", pico_languages[lang_index], ret);
+		goto cleanup;
 	}
 
 	/* Get the signal generation resource name. */
-	ret = pico_getResourceName(engine->pico_sys, engine->pico_sq, (char *) picoSgResourceName);
+	ret = pico_getResourceName(engine->pico_sys, engine->pico_sq, (char *) resource_name_sq);
 	if ((PICO_OK == ret) && (engine->pico_utpp != NULL)) {
 		/* Get utpp resource name - optional: see note above.   */
-		ret = pico_getResourceName(engine->pico_sys, engine->pico_utpp, (char *) picoUtppResourceName);
+		ret = pico_getResourceName(engine->pico_sys, engine->pico_utpp, (char *) resource_name_utpp);
 		if (PICO_OK != ret)  {
-			return false;
+			goto cleanup;
 		}
 	}
 
 	if (PICO_OK != ret) {
-		PICO_DBG("Failed to get siggen resource name for %s [%d]\n", pico_languages[langIndex], ret);
-		return false;
+		PICO_DBG("Failed to get siggen resource name for %s [%d]\n", pico_languages[lang_index], ret);
+		goto cleanup;
 	}
 
 	/* Create a voice definition.   */
 	ret = pico_createVoiceDefinition(engine->pico_sys, (const pico_Char *) PICO_VOICE_NAME);
 	if (PICO_OK != ret) {
-		PICO_DBG("Failed to create voice for %s [%d]\n", pico_languages[langIndex], ret);
-		return false;
+		PICO_DBG("Failed to create voice for %s [%d]\n", pico_languages[lang_index], ret);
+		goto cleanup;
 	}
 
 	/* Add the text analysis resource to the voice. */
-	ret = pico_addResourceToVoiceDefinition(engine->pico_sys, (const pico_Char *) PICO_VOICE_NAME, picoTaResourceName);
+	ret = pico_addResourceToVoiceDefinition(engine->pico_sys, (const pico_Char *) PICO_VOICE_NAME, resource_name_ta);
 	if (PICO_OK != ret) {
-		PICO_DBG("Failed to add textana resource to voice for %s [%d]\n", pico_languages[langIndex], ret);
-		return false;
+		PICO_DBG("Failed to add textana resource to voice for %s [%d]\n", pico_languages[lang_index], ret);
+		goto cleanup;
 	}
 
 	/* Add the signal generation resource to the voice. */
-	ret = pico_addResourceToVoiceDefinition(engine->pico_sys, (const pico_Char *) PICO_VOICE_NAME, picoSgResourceName);
+	ret = pico_addResourceToVoiceDefinition(engine->pico_sys, (const pico_Char *) PICO_VOICE_NAME, resource_name_sq);
 	if ((PICO_OK == ret) && (engine->pico_utpp != NULL)) {
 		/* Add utpp resource to voice - optional: see note above.   */
-		ret = pico_addResourceToVoiceDefinition(engine->pico_sys, (const pico_Char *) PICO_VOICE_NAME, picoUtppResourceName);
+		ret = pico_addResourceToVoiceDefinition(engine->pico_sys, (const pico_Char *) PICO_VOICE_NAME, resource_name_utpp);
 		if (PICO_OK != ret) {
-			PICO_DBG("Failed to add utpp resource to voice for %s [%d]\n", pico_languages[langIndex], ret);
-			return false;
+			PICO_DBG("Failed to add utpp resource to voice for %s [%d]\n", pico_languages[lang_index], ret);
+			goto cleanup;
 		}
 	}
 
 	if (PICO_OK != ret) {
-		PICO_DBG("Failed to add siggen resource to voice for %s [%d]\n", pico_languages[langIndex], ret);
-		return false;
+		PICO_DBG("Failed to add siggen resource to voice for %s [%d]\n", pico_languages[lang_index], ret);
+		goto cleanup;
 	}
 
 	ret = pico_newEngine(engine->pico_sys, (const pico_Char *) PICO_VOICE_NAME, &engine->pico_engine);
 	if (PICO_OK != ret) {
-		PICO_DBG("Failed to create engine for %s [%d]\n", pico_languages[langIndex], ret);
-		return false;
+		PICO_DBG("Failed to create engine for %s [%d]\n", pico_languages[lang_index], ret);
+		goto cleanup;
 	}
 
+	success = true;
 	PICO_DBG("%s loaded successfully\n", engine->current_language);
-	return true;
+
+cleanup:
+	free(fname_ta);
+	free(fname_sq);
+	free(fname_utpp);
+	return success;
 }
 
 static int find_language_index(const char *lang)
