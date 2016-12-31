@@ -65,6 +65,8 @@ TTS_Engine *TtsEngine_Create(const char *lang_dir, const char *language, tts_cal
 		return NULL;
 	}
 
+	PICO_DBG("TtsEngine_Create: lang:%s dir:%s\n", language, lang_dir);
+
 	TTS_Engine *engine = (TTS_Engine *) calloc(1, sizeof(TTS_Engine));
 	engine->current_pitch = PICO_DEF_PITCH;
 	engine->current_rate = PICO_DEF_RATE;
@@ -311,12 +313,12 @@ static bool load_language(TTS_Engine *engine, const char *lang)
 	fname_utpp = (pico_Char *) path_join(engine->languages_path, pico_utpp_files[lang_index]);
 
 	if (!is_readable(fname_ta)) {
-		PICO_DBG("%s is not readable.\n", engine->picoTaFileName);
+		PICO_DBG("%s is not readable.\n", fname_ta);
 		goto cleanup;
 	}
 
 	if (!is_readable(fname_sq)) {
-		PICO_DBG("%s is not readable.\n", engine->picoSgFileName);
+		PICO_DBG("%s is not readable.\n", fname_sq);
 		goto cleanup;
 	}
 
