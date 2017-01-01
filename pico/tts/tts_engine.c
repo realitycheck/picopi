@@ -13,7 +13,7 @@
 #define PICO_DBG(...)
 #endif
 
-#define PICO_MEM_SIZE       2 * 1024 * 1024
+#define PICO_MEM_SIZE       3 * 1024 * 1024
 /* speaking rate    */
 #define PICO_MIN_RATE        20
 #define PICO_MAX_RATE       500
