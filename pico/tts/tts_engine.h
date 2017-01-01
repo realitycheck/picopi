@@ -25,6 +25,10 @@ int TtsEngine_SetPitch(TTS_Engine *engine, int pitch);
 
 int TtsEngine_GetPitch(const TTS_Engine *engine);
 
+int TtsEngine_SetVolume(TTS_Engine *engine, int vol);
+
+int TtsEngine_GetVolume(const TTS_Engine *engine);
+
 void TtsEngine_Stop(TTS_Engine *engine);
 
 bool TtsEngine_Speak(TTS_Engine *engine, const char *text, void *userdata);

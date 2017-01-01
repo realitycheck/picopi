@@ -14,14 +14,18 @@
 #endif
 
 #define PICO_MEM_SIZE       3 * 1024 * 1024
-/* speaking rate    */
+/* speech rate    */
 #define PICO_MIN_RATE        20
 #define PICO_MAX_RATE       500
 #define PICO_DEF_RATE       100
-/* speaking pitch   */
+/* speech pitch   */
 #define PICO_MIN_PITCH       50
 #define PICO_MAX_PITCH      200
 #define PICO_DEF_PITCH      100
+/* speech volume */
+#define PICO_MIN_VOL          0
+#define PICO_MAX_VOL        500
+#define PICO_DEF_VOL        100
 
 #define MAX_OUTBUF_SIZE     128
 #define SYNTH_BUFFER_SIZE   (128 * 1024)
@@ -46,6 +50,7 @@ struct sTTS_Engine {
 	char *  current_language;
 	int     current_rate;
 	int     current_pitch;
+	int     current_volume;
 	char * languages_path;
 	uint8_t *synthesis_buffer;
 	bool    synthesis_abort_flag;
@@ -57,6 +62,7 @@ static bool is_readable(const pico_Char *filename);
 static char * path_join(const char *dir, const char *filename);
 static bool load_language(TTS_Engine *engine, const char *lang);
 static const char *add_properties(TTS_Engine *engine, const char *text);
+static int clamp(int val, int min_val, int max_val);
 
 TTS_Engine *TtsEngine_Create(const char *lang_dir, const char *language, tts_callback_t cb)
 {
@@ -70,6 +76,7 @@ TTS_Engine *TtsEngine_Create(const char *lang_dir, const char *language, tts_cal
 	TTS_Engine *engine = (TTS_Engine *) calloc(1, sizeof(TTS_Engine));
 	engine->current_pitch = PICO_DEF_PITCH;
 	engine->current_rate = PICO_DEF_RATE;
+	engine->current_volume = PICO_DEF_VOL;
 
 	engine->pico_mem_pool = calloc(PICO_MEM_SIZE , 1);
 	if (!engine->pico_mem_pool) {
@@ -105,9 +112,7 @@ TTS_Engine *TtsEngine_Create(const char *lang_dir, const char *language, tts_cal
 int TtsEngine_SetRate(TTS_Engine *engine, int rate)
 {
 	assert(engine);
-	if (rate >= PICO_MIN_RATE && rate <= PICO_MAX_RATE) {
-		engine->current_rate = rate;
-	}
+	engine->current_rate = clamp(rate, PICO_MIN_RATE, PICO_MAX_RATE);
 	return engine->current_rate;
 }
 
@@ -117,15 +122,25 @@ int TtsEngine_GetRate(const TTS_Engine *engine)
 	return engine->current_rate;
 }
 
+int TtsEngine_SetVolume(TTS_Engine *engine, int vol)
+{
+	assert(engine);
+	engine->current_volume = clamp(vol, PICO_MIN_VOL, PICO_MAX_VOL);
+	return engine->current_volume;
+}
+
+int TtsEngine_GetVolume(const TTS_Engine *engine)
+{
+	assert(engine);
+	return engine->current_volume;
+}
+
 int TtsEngine_SetPitch(TTS_Engine *engine, int pitch)
 {
 	assert(engine);
-	if (pitch >= PICO_MIN_PITCH && pitch <= PICO_MAX_PITCH) {
-		engine->current_pitch = pitch;
-	}
+	engine->current_pitch = clamp(pitch, PICO_MIN_PITCH, PICO_MAX_PITCH);
 	return engine->current_pitch;
 }
-
 
 int TtsEngine_GetPitch(const TTS_Engine *engine)
 {
@@ -453,16 +468,28 @@ static bool is_readable(const pico_Char *filename)
 
 static const char *add_properties(TTS_Engine *engine, const char *text)
 {
-	const size_t max_tags_len = 512;
+	const size_t max_tags_len = 256;
 	bool set_pitch = (engine->current_pitch != PICO_DEF_PITCH);
 	bool set_rate = (engine->current_rate != PICO_DEF_RATE);
-	if (!set_pitch && !set_rate)
+	bool set_volume = (engine->current_volume != PICO_DEF_VOL);
+	if (!set_pitch && !set_rate && !set_volume)
 		return text;
 
 	size_t new_len = strlen(text) + max_tags_len;
 	char *new_text = (char*) malloc(new_len);
 	snprintf(new_text, new_len,
-			 "<speed level='%4d'><pitch level='%4d'>%s</pitch></speed>",
-			 engine->current_rate, engine->current_pitch, text);
+			 "<speed level='%4d'><pitch level='%4d'><volume level='%4d'>%s</volume></pitch></speed>",
+			 engine->current_rate, engine->current_pitch, engine->current_volume, text);
 	return new_text;
+}
+
+static int clamp(int val, int min_val, int max_val)
+{
+	if (val < min_val) {
+		val = min_val;
+	}
+	else if (val > max_val) {
+		val = max_val;
+	}
+	return val;
 }
