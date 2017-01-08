@@ -48,11 +48,11 @@ struct sTTS_Engine {
 	pico_Resource   pico_utpp;
 	pico_Engine     pico_engine;
 	char *  current_language;
+	char * languages_path;
+	uint8_t *synthesis_buffer;
 	int     current_rate;
 	int     current_pitch;
 	int     current_volume;
-	char * languages_path;
-	uint8_t *synthesis_buffer;
 	bool    synthesis_abort_flag;
 };
 
