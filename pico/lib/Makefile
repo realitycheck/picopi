@@ -57,4 +57,5 @@ install: all
 	@echo "Copying the library to /usr/lib/"
 	@install -o root -g root -m644 -D -t /usr/lib libsvoxpico.so
 	@install -o root -g root -m644 -D -t /usr/include pico*.h
+	@install -o root -g root -m755 -d /usr/share/pico/lang 
 	@install -o root -g root -m644 -D -t /usr/share/pico/lang ../lang/*.bin
