@@ -15,8 +15,9 @@ Some of the tools used to build the TTS data. I have no idea whether they are us
 3) pico/lib - The Pico TTS engine itself
 This this original Pico TTS engine source code. It is very portable and didn't require any changes to get compiling. The makefile will build libsvoxpico.so which can be used directly using the documentation mentioned above.
 
-4) pico/tts - High level C++ interface, SSML parser and test application
-This directory implements a class TtsEngine and a limited Speech Synthesis Markup Language (SSML) implementation. I have also written a simple test program called "ttstest" using these classes to get you started using Pico TTS on the Raspberry Pi.
+4) pico/tts - High level C interface and test application
+
+5) pico/python - High level Python module and test script
 
 Building the library and testing it
 
