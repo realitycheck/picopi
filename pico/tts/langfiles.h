@@ -7,7 +7,7 @@ extern "C" {
 
 typedef struct sLang_Filenames {	
 	char *fname_ta;
-	char *fname_sq;
+	char *fname_sg;
 	char *fname_utpp;
 } Lang_Filenames;
 

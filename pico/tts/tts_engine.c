@@ -33,11 +33,11 @@
 static const char * PICO_VOICE_NAME                = "PicoVoice";
 
 struct sTTS_Engine {
-	tts_callback_t * synth_callback;
+	tts_callback_t  synth_callback;
 	void *          pico_mem_pool;
 	pico_System     pico_sys;
 	pico_Resource   pico_ta;
-	pico_Resource   pico_sq;
+	pico_Resource   pico_sg;
 	pico_Resource   pico_utpp;
 	pico_Engine     pico_engine;
 	char *  current_language;
@@ -281,9 +281,9 @@ void TtsEngine_Destroy(TTS_Engine *engine)
 		engine->pico_ta = NULL;
 	}
 
-	if (engine->pico_sq) {
-		pico_unloadResource(engine->pico_sys, &engine->pico_sq);
-		engine->pico_sq = NULL;
+	if (engine->pico_sg) {
+		pico_unloadResource(engine->pico_sys, &engine->pico_sg);
+		engine->pico_sg = NULL;
 	}
 
 	if (engine->pico_sys) {
@@ -303,7 +303,7 @@ static bool load_language(TTS_Engine *engine, const char *lang)
 	pico_Status ret;
 	bool success = false;
 	pico_Char resource_name_ta[PICO_MAX_RESOURCE_NAME_SIZE];
-	pico_Char resource_name_sq[PICO_MAX_RESOURCE_NAME_SIZE];
+	pico_Char resource_name_sg[PICO_MAX_RESOURCE_NAME_SIZE];
 	pico_Char resource_name_utpp[PICO_MAX_RESOURCE_NAME_SIZE];
 	pico_Char *fname_utpp = "dummy.bin";
 	Lang_Filenames lf;
@@ -315,8 +315,8 @@ static bool load_language(TTS_Engine *engine, const char *lang)
 		goto cleanup;
 	}
 
-	if (!is_readable(lf.fname_sq)) {
-		PICO_DBG("%s is not readable.\n", lf.fname_sq);
+	if (!is_readable(lf.fname_sg)) {
+		PICO_DBG("%s is not readable.\n", lf.fname_sg);
 		goto cleanup;
 	}
 
@@ -328,7 +328,7 @@ static bool load_language(TTS_Engine *engine, const char *lang)
 	}
 
 	/* Load the signal generation Lingware resource file.   */
-	ret = pico_loadResource(engine->pico_sys, lf.fname_sq, &engine->pico_sq);
+	ret = pico_loadResource(engine->pico_sys, lf.fname_sg, &engine->pico_sg);
 	if (PICO_OK != ret) {
 		PICO_DBG("Failed to load siggen resource for %s [%d]\n", lang, ret);
 		goto cleanup;
@@ -355,7 +355,7 @@ static bool load_language(TTS_Engine *engine, const char *lang)
 	}
 
 	/* Get the signal generation resource name. */
-	ret = pico_getResourceName(engine->pico_sys, engine->pico_sq, (char *) resource_name_sq);
+	ret = pico_getResourceName(engine->pico_sys, engine->pico_sg, (char *) resource_name_sg);
 	if ((PICO_OK == ret) && (engine->pico_utpp != NULL)) {
 		/* Get utpp resource name - optional: see note above.   */
 		ret = pico_getResourceName(engine->pico_sys, engine->pico_utpp, (char *) resource_name_utpp);
@@ -384,7 +384,7 @@ static bool load_language(TTS_Engine *engine, const char *lang)
 	}
 
 	/* Add the signal generation resource to the voice. */
-	ret = pico_addResourceToVoiceDefinition(engine->pico_sys, (const pico_Char *) PICO_VOICE_NAME, resource_name_sq);
+	ret = pico_addResourceToVoiceDefinition(engine->pico_sys, (const pico_Char *) PICO_VOICE_NAME, resource_name_sg);
 	if ((PICO_OK == ret) && (engine->pico_utpp != NULL)) {
 		/* Add utpp resource to voice - optional: see note above.   */
 		ret = pico_addResourceToVoiceDefinition(engine->pico_sys, (const pico_Char *) PICO_VOICE_NAME, resource_name_utpp);
@@ -415,7 +415,11 @@ cleanup:
 
 static bool is_readable(const pico_Char *filename)
 {
-	FILE *fp = fopen((const char *)filename, "rb");
+	FILE *fp = NULL;
+	if (!filename)
+		return false;
+
+	fp = fopen((const char *)filename, "rb");
 	if (!fp) {
 		return false;
 	}
@@ -434,9 +438,15 @@ static const char *add_properties(TTS_Engine *engine, const char *text)
 
 	size_t new_len = strlen(text) + max_tags_len;
 	char *new_text = (char*) malloc(new_len);
-	snprintf(new_text, new_len,
+#ifdef _WIN32
+	_snprintf_s(new_text, new_len, _TRUNCATE,
 			 "<speed level='%4d'><pitch level='%4d'><volume level='%4d'>%s</volume></pitch></speed>",
 			 engine->current_rate, engine->current_pitch, engine->current_volume, text);
+#else
+	snprintf(new_text, new_len,
+		"<speed level='%4d'><pitch level='%4d'><volume level='%4d'>%s</volume></pitch></speed>",
+		engine->current_rate, engine->current_pitch, engine->current_volume, text);
+#endif
 	return new_text;
 }
 

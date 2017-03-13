@@ -12,7 +12,7 @@ typedef struct sTTS_Engine TTS_Engine;
 
 // Callback used to return audio chunks as they are being synthesized.
 // Return false to stop the synthesis or true to continue.
-typedef bool (tts_callback_t)(void *user, uint32_t rate, uint32_t format, int channels, uint8_t *audio, uint32_t audio_bytes, bool final);
+typedef bool (*tts_callback_t)(void *user, uint32_t rate, uint32_t format, int channels, uint8_t *audio, uint32_t audio_bytes, bool final);
 
 // Create TextToSpeech engine handle
 TTS_Engine *TtsEngine_Create(const char *lang_dir, const char *language, tts_callback_t cb);

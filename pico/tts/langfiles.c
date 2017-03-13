@@ -1,15 +1,23 @@
 #include "langfiles.h"
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <stddef.h>
+#include <ctype.h>
+
+#ifdef _WIN32
+#include <windows.h>
+#include <tchar.h> 
+#include <strsafe.h>
+#pragma comment(lib, "User32.lib")
+#define strcasecmp(A, B) _stricmp(A, B)
+#else
 #include <unistd.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include <stddef.h>
-#include <ctype.h>
+#endif
 
 static bool starts_with(const char *prefix, const char *haystack, bool case_insensitive)
 {
@@ -52,6 +60,70 @@ static char * path_join(const char *dir, const char *filename)
 	return buf;
 }
 
+#ifdef _WIN32
+
+void lang_files_find(Lang_Filenames *fns, const char *langdir, const char *lang)
+{
+	WIN32_FIND_DATA ffd;
+	TCHAR szDir[MAX_PATH];
+	HANDLE hFind = INVALID_HANDLE_VALUE;
+	DWORD dwError = 0;
+	assert(fns);
+	assert(lang);
+	assert(langdir);
+
+	memset(fns, 0, sizeof(*fns));
+	
+	// Prepare string for use with FindFile functions.  First, copy the
+	// string to a buffer, then append '\*' to the directory name.
+
+	StringCchCopy(szDir, MAX_PATH, langdir);
+	StringCchCat(szDir, MAX_PATH, TEXT("\\*"));
+
+	// Find the first file in the directory.
+	hFind = FindFirstFile(szDir, &ffd);
+
+	if (INVALID_HANDLE_VALUE == hFind) {
+		return;
+	}
+
+	// List all the files in the directory with some info about them.
+	do
+	{
+		const TCHAR * const d_name = ffd.cFileName;
+
+		// skip directories...
+		if (ffd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+			continue;
+
+		// We omit hidden files, and the ".." and "." dirs
+		if (starts_with(".", d_name, false))
+			continue;
+
+		// Did we find all the files already??
+		if (fns->fname_ta && fns->fname_sg && fns->fname_utpp)
+			break;
+
+		if (!starts_with(lang, d_name, true))
+			continue;
+
+		if (!fns->fname_ta && ends_with("_ta.bin", d_name, true)) {
+			fns->fname_ta = path_join(langdir, d_name);
+		}
+		else if (!fns->fname_sg && ends_with("_sg.bin", d_name, true)) {
+			fns->fname_sg = path_join(langdir, d_name);
+		}
+		else if (!fns->fname_utpp && ends_with("_utpp.bin", d_name, true)) {
+			fns->fname_utpp = path_join(langdir, d_name);
+		}
+
+	} while (FindNextFile(hFind, &ffd) != 0);
+
+	FindClose(hFind);
+}
+
+#else
+
 void lang_files_find(Lang_Filenames *fns, const char *langdir, const char *lang)
 {
 	assert(fns);
@@ -71,12 +143,12 @@ void lang_files_find(Lang_Filenames *fns, const char *langdir, const char *lang)
 	
 	while (readdir_r(dir, pentry, &retval) == 0 && retval != NULL) {
 		const char * const d_name = pentry->d_name;
-		// We ommit hidden files, and the ".." and "." dirs
+		// We omit hidden files, and the ".." and "." dirs
 		if (starts_with(".", d_name, false))
 			continue;
 
 		// Did we find all the files already??
-		if (fns->fname_ta && fns->fname_sq && fns->fname_utpp)
+		if (fns->fname_ta && fns->fname_sg && fns->fname_utpp)
 			break;
 
 		if (!starts_with(lang, d_name, true))
@@ -85,28 +157,27 @@ void lang_files_find(Lang_Filenames *fns, const char *langdir, const char *lang)
 		if (!fns->fname_ta && ends_with("_ta.bin", d_name, true)) {
 			fns->fname_ta = path_join(langdir, d_name);
 		}
-		else if (!fns->fname_sq && ends_with("_sq.bin", d_name, true)) {
-			fns->fname_sq = path_join(langdir, d_name);
+		else if (!fns->fname_sg && ends_with("_sg.bin", d_name, true)) {
+			fns->fname_sg = path_join(langdir, d_name);
 		}
 		else if (!fns->fname_utpp && ends_with("_utpp.bin", d_name, true)) {
 			fns->fname_utpp = path_join(langdir, d_name);
 		}
-
-		fprintf(stderr, "%s\n", pentry->d_name);
 	}
 
 	closedir(dir);
 	free(pentry);
 }
+#endif
 
 void lang_files_release(Lang_Filenames *fns)
 {
 	assert(fns);
 	free(fns->fname_ta);
-	free(fns->fname_sq);
+	free(fns->fname_sg);
 	free(fns->fname_utpp);
 	fns->fname_ta = NULL;
-	fns->fname_sq = NULL;
+	fns->fname_sg = NULL;
 	fns->fname_utpp = NULL;
 }
 
