@@ -126,6 +126,7 @@ void lang_files_find(Lang_Filenames *fns, const char *langdir, const char *lang)
 
 void lang_files_find(Lang_Filenames *fns, const char *langdir, const char *lang)
 {
+	struct dirent *pentry = NULL;
 	assert(fns);
 	assert(lang);
 	assert(langdir);
@@ -134,14 +135,8 @@ void lang_files_find(Lang_Filenames *fns, const char *langdir, const char *lang)
 	DIR *dir = opendir(langdir);
 	if (!dir)
 		return;
-	
-	int name_max = pathconf(langdir, _PC_NAME_MAX);
-	if (name_max == -1)
-		name_max = 4096; // Take a guess
-	size_t len = offsetof(struct dirent, d_name) + name_max + 1;
-	struct dirent *pentry = malloc(len), *retval = NULL;
-	
-	while (readdir_r(dir, pentry, &retval) == 0 && retval != NULL) {
+
+	while ((pentry = readdir(dir)) != NULL) {
 		const char * const d_name = pentry->d_name;
 		// We omit hidden files, and the ".." and "." dirs
 		if (starts_with(".", d_name, false))
@@ -166,7 +161,6 @@ void lang_files_find(Lang_Filenames *fns, const char *langdir, const char *lang)
 	}
 
 	closedir(dir);
-	free(pentry);
 }
 #endif
 
