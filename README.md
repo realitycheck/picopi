@@ -17,7 +17,6 @@ This this original Pico TTS engine source code. It is very portable and didn't r
 
 4) pico/tts - High level C interface and test application
 
-5) pico/python - High level Python module and test script
 
 Building the library and testing it
 
