@@ -5,8 +5,21 @@
 extern "C" {
 #endif
 
-#include <stdint.h>
-#include <stdbool.h>
+#ifdef _MSC_VER
+    #if _MSC_VER >= 1600
+        #include <cstdint>
+    #else
+	typedef int bool;
+	#define false 0
+	#define true 1
+	typedef unsigned __int32 uint32_t;
+	typedef unsigned __int8 uint8_t;
+	typedef __int8          int8_t;
+#else
+	#include <stdint.h>
+	#include <stdbool.h>
+#endif
+
 struct sTTS_Engine;
 typedef struct sTTS_Engine TTS_Engine;
 

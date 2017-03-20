@@ -57,14 +57,15 @@ static int clamp(int val, int min_val, int max_val);
 
 TTS_Engine *TtsEngine_Create(const char *lang_dir, const char *language, tts_callback_t cb)
 {
+	TTS_Engine *engine = NULL;
+	
 	if (!cb || !language || !lang_dir || strlen(lang_dir) <= 0) {
 		PICO_DBG("%s: Invalid parameter\n", __FUNCTION__);
 		return NULL;
 	}
 
 	PICO_DBG("TtsEngine_Create: lang:%s dir:%s\n", language, lang_dir);
-
-	TTS_Engine *engine = (TTS_Engine *) calloc(1, sizeof(TTS_Engine));
+	engine = (TTS_Engine *) calloc(1, sizeof(TTS_Engine));
 	engine->current_pitch = PICO_DEF_PITCH;
 	engine->current_rate = PICO_DEF_RATE;
 	engine->current_volume = PICO_DEF_VOL;
@@ -139,7 +140,6 @@ int TtsEngine_GetPitch(const TTS_Engine *engine)
 	return engine->current_pitch;
 }
 
-
 void TtsEngine_Stop(TTS_Engine *engine)
 {
 	assert(engine);
@@ -148,8 +148,6 @@ void TtsEngine_Stop(TTS_Engine *engine)
 
 bool TtsEngine_Speak(TTS_Engine *engine, const char *text, void *userdata)
 {
-	assert(engine);
-
 	uint8_t    *buffer = NULL;
 	bool        cont = true;
 	pico_Char * inp = NULL;
@@ -430,14 +428,16 @@ static bool is_readable(const pico_Char *filename)
 static const char *add_properties(TTS_Engine *engine, const char *text)
 {
 	const size_t max_tags_len = 256;
+	size_t new_len;
 	bool set_pitch = (engine->current_pitch != PICO_DEF_PITCH);
 	bool set_rate = (engine->current_rate != PICO_DEF_RATE);
 	bool set_volume = (engine->current_volume != PICO_DEF_VOL);
+	char *new_text = NULL;
 	if (!set_pitch && !set_rate && !set_volume)
 		return text;
 
-	size_t new_len = strlen(text) + max_tags_len;
-	char *new_text = (char*) malloc(new_len);
+	new_len = strlen(text) + max_tags_len;
+	new_text = (char*) malloc(new_len);
 #ifdef _WIN32
 	_snprintf_s(new_text, new_len, _TRUNCATE,
 			 "<speed level='%4d'><pitch level='%4d'><volume level='%4d'>%s</volume></pitch></speed>",

@@ -1,5 +1,4 @@
 #include "langfiles.h"
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +12,13 @@
 #include <strsafe.h>
 #pragma comment(lib, "User32.lib")
 #define strcasecmp(A, B) _stricmp(A, B)
+/* Emulate stdbool.h */
+typedef int bool;
+#define false 0
+#define true 1
+
 #else
+#include <stdbool.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <dirent.h>
