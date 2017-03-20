@@ -50,7 +50,7 @@ struct sTTS_Engine {
 };
 
 /* Local helper functions */
-static bool is_readable(const pico_Char *filename);
+static bool is_readable(const char *filename);
 static bool load_language(TTS_Engine *engine, const char *lang);
 static const char *add_properties(TTS_Engine *engine, const char *text);
 static int clamp(int val, int min_val, int max_val);
@@ -303,7 +303,7 @@ static bool load_language(TTS_Engine *engine, const char *lang)
 	pico_Char resource_name_ta[PICO_MAX_RESOURCE_NAME_SIZE];
 	pico_Char resource_name_sg[PICO_MAX_RESOURCE_NAME_SIZE];
 	pico_Char resource_name_utpp[PICO_MAX_RESOURCE_NAME_SIZE];
-	pico_Char *fname_utpp = "dummy.bin";
+	const pico_Char *fname_utpp = (const pico_Char *) "dummy.bin";
 	Lang_Filenames lf;
 
 	lang_files_find(&lf, engine->languages_path, lang);
@@ -319,14 +319,14 @@ static bool load_language(TTS_Engine *engine, const char *lang)
 	}
 
 	/* Load the text analysis Lingware resource file.   */
-	ret = pico_loadResource(engine->pico_sys, lf.fname_ta, &engine->pico_ta);
+	ret = pico_loadResource(engine->pico_sys, (const pico_Char *) lf.fname_ta, &engine->pico_ta);
 	if (PICO_OK != ret) {
 		PICO_DBG("Failed to load textana resource for %s [%d]\n", lang, ret);
 		goto cleanup;
 	}
 
 	/* Load the signal generation Lingware resource file.   */
-	ret = pico_loadResource(engine->pico_sys, lf.fname_sg, &engine->pico_sg);
+	ret = pico_loadResource(engine->pico_sys, (const pico_Char *) lf.fname_sg, &engine->pico_sg);
 	if (PICO_OK != ret) {
 		PICO_DBG("Failed to load siggen resource for %s [%d]\n", lang, ret);
 		goto cleanup;
@@ -335,7 +335,7 @@ static bool load_language(TTS_Engine *engine, const char *lang)
 	/* Load the utpp Lingware resource file if exists - NOTE: this file is optional
 	   and is currently not used. Loading is only attempted for future compatibility.
 	   If this file is not present the loading will still succeed.                      */
-	if (lf.fname_utpp) fname_utpp = lf.fname_utpp;
+	if (lf.fname_utpp) fname_utpp = (const pico_Char *) lf.fname_utpp;
 	ret = pico_loadResource(engine->pico_sys, fname_utpp, &engine->pico_utpp);
 	if ((PICO_OK != ret) && (ret != PICO_EXC_CANT_OPEN_FILE)) {
 		PICO_DBG("Failed to load utpp resource for %s [%d]\n", lang, ret);
@@ -411,13 +411,13 @@ cleanup:
 	return success;
 }
 
-static bool is_readable(const pico_Char *filename)
+static bool is_readable(const char *filename)
 {
 	FILE *fp = NULL;
 	if (!filename)
 		return false;
 
-	fp = fopen((const char *)filename, "rb");
+	fp = fopen(filename, "rb");
 	if (!fp) {
 		return false;
 	}
